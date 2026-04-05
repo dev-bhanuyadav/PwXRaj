@@ -17,9 +17,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- PRODUCTION SERVING ---
-// Serve static files from the React app dist folder
-app.use(express.static(path.join(__dirname, '../dist')));
+// --- PRODUCTION SERVING (Disable on Vercel) ---
+// Vercel handles static serving of the 'dist' folder automatically via the frontend config.
+// Express static serving is ONLY needed for tradition VPS deployment.
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
+  app.use(express.static(path.join(__dirname, '../dist')));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+  });
+}
 
 const MONGODB_URI = "mongodb+srv://developerbhanuyadav_db_user:2k6WfIq4NX9wv6BJ@cluster0.pgtuzkp.mongodb.net/?appName=Cluster0";
 
@@ -97,10 +104,10 @@ app.post('/api/auth/verify-otp', async (req, res) => {
       // Save or Update Token in DB
       await Token.findOneAndUpdate(
         { phone },
-        { 
-          accessToken: access_token, 
-          refreshToken: refresh_token, 
-          ownerName, 
+        {
+          accessToken: access_token,
+          refreshToken: refresh_token,
+          ownerName,
           randomId,
           lastUpdated: new Date(),
           tokenStatus: true
@@ -176,7 +183,7 @@ app.post('/api/admin/tokens/refresh-all', async (req, res) => {
         if (!response.ok) throw new Error("Refresh failed");
 
         const { data } = await response.json();
-        
+
         await Token.findByIdAndUpdate(token._id, {
           accessToken: data.access_token,
           refreshToken: data.refresh_token,
@@ -244,11 +251,7 @@ app.post('/api/heartbeat', async (req, res) => {
   }
 });
 
-// --- SPA ROUTING ---
-// Redirect all other requests to the React app's index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../dist/index.html'));
-});
+// Catch-all route handled above for VPS only
 
 const PORT = process.env.PORT || 80;
 
