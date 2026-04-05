@@ -28,11 +28,12 @@ if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   });
 }
 
-const MONGODB_URI = "mongodb+srv://developerbhanuyadav_db_user:2k6WfIq4NX9wv6BJ@cluster0.pgtuzkp.mongodb.net/?appName=Cluster0";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://developerbhanuyadav_db_user:2k6WfIq4NX9wv6BJ@cluster0.pgtuzkp.mongodb.net/?appName=Cluster0";
 
+console.log('📡 [Server] Initiating MongoDB Connection...');
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Connected to MongoDB'))
-  .catch(err => console.error('❌ MongoDB Connection Error:', err));
+  .then(() => console.log('✅ [Server] Connected to MongoDB via Vercel Settings'))
+  .catch(err => console.error('❌ [Server] MongoDB Connection Error:', err));
 
 // PW Configuration from Analysis
 const PW_ORG_ID = "5eb393ee95fab7468a79d189";
